@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+
     "strict": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "Preserve",
-    "moduleDetection": "force",
     "isolatedModules": true,
-    "jsx": "preserve",
+
+    "baseUrl": ".",
+    "types": ["sanity", "node"],
     "incremental": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
