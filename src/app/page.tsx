@@ -1,5 +1,6 @@
 import { sanityClient } from '@/lib/sanity.client'
 import { settingsQuery, lineupDaysQuery, latestPostsQuery } from '@/lib/queries'
+import type { LineupDay, Post, Settings, ScheduleSlot } from '@/interfaces'
 
 function fmtDate(dt: string) {
   return new Date(dt).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
@@ -9,10 +10,10 @@ function fmtTime(dt: string) {
 }
 
 export default async function Home() {
-  const [settings, days, posts] = await Promise.all([
-    sanityClient.fetch(settingsQuery),
-    sanityClient.fetch(lineupDaysQuery),
-    sanityClient.fetch(latestPostsQuery),
+  const [settings, days, posts]:[Settings, LineupDay[], Post[]] = await Promise.all([
+    sanityClient.fetch<Settings>(settingsQuery),
+    sanityClient.fetch<LineupDay[]>(lineupDaysQuery),
+    sanityClient.fetch<Post[]>(latestPostsQuery),
   ])
 
   return (
@@ -29,11 +30,11 @@ export default async function Home() {
       <section className="max-w-5xl mx-auto p-4">
         <h2 className="text-2xl font-semibold mb-3">Lineup</h2>
         <div className="space-y-6">
-          {(days ?? []).map((d: any) => (
+          {(days ?? []).map((d: LineupDay) => (
             <div key={d._id} className="border rounded p-4">
               <div className="text-sm font-medium mb-2">{fmtDate(d.date)}</div>
               <ul className="divide-y">
-                {(d.slots ?? []).map((s: any) => (
+                {(d.slots ?? []).map((s: ScheduleSlot) => (
                   <li key={s._key} className="py-2 flex items-center justify-between">
                     <div className="font-medium">{s.artist?.name ?? 'TBA'}</div>
                     <div className="text-sm text-gray-600">{s.stage} · {fmtTime(s.start)}–{fmtTime(s.end)}</div>
@@ -48,7 +49,7 @@ export default async function Home() {
       <section className="max-w-5xl mx-auto p-4 pb-12">
         <h2 className="text-2xl font-semibold mb-3">Latest News</h2>
         <div className="grid md:grid-cols-3 gap-4">
-          {(posts ?? []).map((p: any) => (
+          {(posts ?? []).map((p: Post) => (
             <article key={p._id} className="border rounded p-4">
               <h3 className="font-semibold mb-1">{p.title}</h3>
               <div className="text-sm text-gray-600 mb-2">
