@@ -1,3 +1,7 @@
+packages:
+  - .        # the root Next.js app
+  - studio   # the Sanity Studio app
+
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - esbuild

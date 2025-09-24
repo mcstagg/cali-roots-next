@@ -12,7 +12,7 @@
     "isolatedModules": true,
 
     "baseUrl": ".",
-    "types": ["sanity", "node"],
+    "types": ["node"],
     "incremental": true
   },
   "include": ["**/*.ts", "**/*.tsx"],

@@ -4,10 +4,21 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "dev:open": "next dev --turbo & sleep 1 && open http://localhost:3000",
+    "dev:webpack": "next dev --no-turbo",
     "build": "next build --turbopack",
+    "build:webpack": "next build --no-turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "studio:dev": "pnpm --filter studio dev",
+    "studio:build": "pnpm --filter studio build",
+    "studio:deploy": "pnpm --filter studio dlx sanity@latest deploy",
+    "dev:all": "concurrently -k -n next,studio -c green,blue \"pnpm dev\" \"pnpm studio:dev\"",
+    "dev:all:webpack": "concurrently -k -n next,studio -c green,blue \"pnpm dev:webpack\" \"pnpm studio:dev\"",
+    "build:all": "concurrently -k -n next,studio -c green,blue \"pnpm build\" \"pnpm studio:build\"",
+    "build:all:webpack": "concurrently -k -n next,studio -c green,blue \"pnpm build:webpack\" \"pnpm studio:build\"",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "typecheck:studio": "pnpm --filter studio typecheck",
+    "typecheck:all": "concurrently \"pnpm typecheck\" \"pnpm typecheck:studio\""
   },
   "dependencies": {
     "@sanity/client": "^7.11.1",
@@ -23,6 +34,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4",
