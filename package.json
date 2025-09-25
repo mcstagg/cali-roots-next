@@ -10,7 +10,7 @@
     "start": "next start",
     "studio:dev": "pnpm --filter studio dev",
     "studio:build": "pnpm --filter studio build",
-    "studio:deploy": "pnpm --filter studio dlx sanity@latest deploy",
+    "studio:deploy": "pnpm --filter studio exec sanity deploy",
     "dev:all": "concurrently -k -n next,studio -c green,blue \"pnpm dev\" \"pnpm studio:dev\"",
     "dev:all:webpack": "concurrently -k -n next,studio -c green,blue \"pnpm dev:webpack\" \"pnpm studio:dev\"",
     "build:all": "concurrently -k -n next,studio -c green,blue \"pnpm build\" \"pnpm studio:build\"",
