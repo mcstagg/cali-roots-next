@@ -278,3 +278,67 @@ No deploy is needed for content changes—only for **schema/UI code** changes.
 * [ ] Wire Sanity → Next webhook that calls `revalidateTag(...)`.
 * [ ] Hide deprecated fields in Studio for Editors (leave visible for Admins/Devs if you want).
 * [ ] After backfill, remove the old field and drop the `coalesce()`.
+
+**content edits by Editors don’t “break” the project**. Breakage almost always comes from **code/config**—especially in `cali-roots-next/studio` (schemas, desk, plugins) or from **access/config changes** (tokens, CORS, roles). Here’s the fuller picture:
+
+# What actually breaks things
+
+* **Studio code/config changes** (your `studio/` folder): bad schema, plugin/version mismatch, invalid desk structure, wrong `projectId/dataset`, missing env → Studio build/dev fails or fields disappear.
+* **Next.js app assumptions**: GROQ/TypeScript expecting a field that got renamed/removed; references unset; null images; Zod `parse` failing → pages or components error.
+* **Access & infra**:
+
+  * Revoked/incorrect **API tokens** used by Next.js → 401/403s.
+  * **CORS** not allowing your domain → Studio can’t talk to the Content Lake.
+  * **Roles/permissions** changed (e.g., removing your own access).
+  * Deleting a **dataset/project** (org-level power).
+
+# What usually does **not** break things
+
+* **Editors changing content** in Studio: safe. The Content Lake updates immediately; your Studio UI and local dev just reflect it. Your live site updates on revalidation (ISR/webhook).
+* **Multiple editors**: Studio is collaborative; drafts merge in real time. Publish is atomic.
+
+# Edge cases to be aware of (content that can “break” your site logic)
+
+* **Empty/duplicate slugs** that your router assumes are unique.
+* **Required fields left blank** if your components don’t guard against nulls.
+* **Huge media or massive lists** impacting page performance if you render without pagination.
+
+# Hardening checklist (so content can’t hurt you)
+
+* **Validation in schemas** (required, min/max, custom rules):
+
+  ```ts
+  defineField({
+    name: 'title',
+    type: 'string',
+    validation: Rule => Rule.required().min(3).max(120)
+  })
+
+  defineField({
+    name: 'slug',
+    type: 'slug',
+    options: { source: 'title' /* plus optional isUnique override if needed */ },
+    validation: Rule => Rule.required()
+  })
+  ```
+* **Slug uniqueness**: use the built-in uniqueness or a custom `isUnique` to avoid route collisions.
+* **Defensive GROQ** with fallbacks during schema changes:
+
+  ```groq
+  displayName := coalesce(displayName, name)
+  ```
+* **Zod + safeParse** in Next.js to fail gracefully and show a friendly fallback instead of crashing.
+* **ISR + webhooks** so publishes revalidate the right routes/tags quickly.
+* **Staging dataset** for risky schema changes; run migrations there first.
+* **Pin or manage versions**:
+
+  * Keep `deployment.autoUpdates: true` (simple) **or** pin versions and upgrade intentionally.
+* **Limit permissions**:
+
+  * Give Editors *project* “Editor,” not org roles.
+  * Optionally hide dangerous actions for Editors (e.g., “Delete”) via `document.actions` filters.
+
+# Bottom line
+
+* **Yes, the main way to “break” things is code/config**, not day-to-day content edits.
+* If you add validation + defensive queries and keep tokens/CORS/roles tidy, Editors can go wild without taking down your Studio or site.
