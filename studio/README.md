@@ -184,3 +184,97 @@ const data = await sanityClient.fetch(query, params, { next: { tags: ['artist'] 
 ---
 
 Decide which schema you plan to evolve next (e.g., `artist` field rename), and sketch the exact migration snippet, GROQ `coalesce` changes, and the webhook tags to wire so it’s smooth end-to-end.
+
+Schema changes are totally manageable with a simple playbook. 90% of schema changes are additive (easy), and the “rename/reshape” 10% is safe if you roll it out in phases.
+
+# The low-stress schema evolution playbook
+
+1. **Add, don’t break (phase 1)**
+
+* Add new fields alongside old ones (don’t delete/rename yet).
+* In GROQ, read both and prefer the new:
+
+  ```groq
+  displayName := coalesce(displayName, name)
+  ```
+* In TypeScript/Zod, make the new field optional for now.
+
+2. **Ship code (Studio + Next)**
+
+* Deploy Studio so editors see the new fields.
+* Deploy Next with **fallback queries** (`coalesce`) and tolerant types.
+* Nothing breaks if some docs still only have the old field.
+
+3. **Backfill/migrate content (phase 2)**
+
+* Run a small script to copy old ➜ new (and optionally unset old later).
+
+  ```ts
+  // scripts/migrate-artist-name-to-displayName.ts
+  import {createClient} from '@sanity/client'
+
+  const client = createClient({
+    projectId: process.env.SANITY_PROJECT_ID!,
+    dataset: process.env.SANITY_DATASET || 'production',
+    apiVersion: '2025-01-01',
+    token: process.env.SANITY_WRITE_TOKEN!, // editor+ is fine
+    useCdn: false,
+  })
+
+  async function run() {
+    const docs: { _id: string; _rev: string; name?: string; displayName?: string }[] =
+      await client.fetch(`*[_type=="artist" && defined(name) && !defined(displayName)][0...1000]{_id,_rev,name}`)
+    while (docs.length) {
+      const batch = docs.splice(0, 100)
+      const tx = client.transaction()
+      for (const d of batch) {
+        tx.patch(d._id, {set: {displayName: d.name}})
+      }
+      await tx.commit({visibility: 'async'})
+    }
+    console.log('Done.')
+  }
+  run().catch(e => { console.error(e); process.exit(1) })
+  ```
+* You can run this against a **staging** dataset first (recommended), then production.
+
+4. **Flip the switch (phase 3)**
+
+* Update queries/types to **use only the new field**.
+* Remove/hide the old field in the schema (or keep it hidden for a while).
+* Clean up GROQ (drop `coalesce`) once you’re confident.
+
+5. **Safety nets**
+
+* **Tags + webhooks** in Next: fetch with `next: { tags: ['artist'] }` and revalidate that tag on publish.
+* **Validation**: add schema validation to enforce the new field going forward.
+* **Singletons & desk tweaks**: keep settings single; hide deprecated fields from Editors.
+
+---
+
+## What actually happens when Editors change content
+
+* Editors publish → the **dataset** updates immediately in the cloud.
+* **Local Studio dev** and **hosted Studio** both read that dataset → they see changes right away.
+* **Next.js dev** sees changes immediately; **Next.js prod** sees them after revalidation (ISR or webhook-triggered).
+
+No deploy is needed for content changes—only for **schema/UI code** changes.
+
+---
+
+## When you *do* want extra caution
+
+* **Staging first**: `sanity dataset create staging` → copy from prod → point a staging Studio at it → test schema + migration there.
+* **Dataset alias (zero downtime)**: create an alias like `live` that points to a dataset; migrate on a clone, then retarget the alias to the migrated dataset in one move.
+* **Content freeze** (optional): during a rename/shape change, briefly freeze edits to affected types while the migration runs.
+
+---
+
+## Tiny checklist for your cali-roots-next repo
+
+* [ ] Write queries with `coalesce()` whenever introducing new fields.
+* [ ] Keep Zod types permissive during the “bridge” window.
+* [ ] Add a `/scripts/` folder with one migration template you can copy/paste.
+* [ ] Wire Sanity → Next webhook that calls `revalidateTag(...)`.
+* [ ] Hide deprecated fields in Studio for Editors (leave visible for Admins/Devs if you want).
+* [ ] After backfill, remove the old field and drop the `coalesce()`.
