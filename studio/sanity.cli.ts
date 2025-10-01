@@ -12,5 +12,8 @@ export default defineCliConfig({
    */
   deployment: {
     autoUpdates: true // was: autoUpdates: true
+  },
+  vite: {
+    preview: { port: 3334, host: '127.0.0.1' }
   }
 })
